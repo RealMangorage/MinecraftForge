@@ -138,12 +138,18 @@ public class FluidUtil
                             if (player != null)
                             {
                                 SoundEvent soundevent = simulatedTransfer.getFluid().getFluidType().getSound(simulatedTransfer, SoundActions.BUCKET_FILL);
-                                player.level.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), soundevent, SoundSource.BLOCKS, 1.0F, 1.0F);
+
+                                if (soundevent != null)
+                                {
+                                    player.level.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), soundevent, SoundSource.BLOCKS, 1.0F, 1.0F);
+                                }
                             }
                         }
                         else
                         {
-                            containerFluidHandler.fill(simulatedTransfer, IFluidHandler.FluidAction.SIMULATE);
+                            // We are acting on a COPY of the stack, so performing changes on the source is acceptable even if we are simulating.
+                            // We need to perform the change otherwise the call to getContainer() will be incorrect.
+                            containerFluidHandler.fill(simulatedTransfer, IFluidHandler.FluidAction.EXECUTE);
                         }
 
                         ItemStack resultContainer = containerFluidHandler.getContainer();
@@ -186,7 +192,11 @@ public class FluidUtil
                     if (doDrain && player != null)
                     {
                         SoundEvent soundevent = transfer.getFluid().getFluidType().getSound(transfer, SoundActions.BUCKET_EMPTY);
-                        player.level.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), soundevent, SoundSource.BLOCKS, 1.0F, 1.0F);
+
+                        if (soundevent != null)
+                        {
+                            player.level.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), soundevent, SoundSource.BLOCKS, 1.0F, 1.0F);
+                        }
                     }
 
                     ItemStack resultContainer = containerFluidHandler.getContainer();
@@ -596,7 +606,12 @@ public class FluidUtil
             if (!result.isEmpty())
             {
                 SoundEvent soundevent = resource.getFluid().getFluidType().getSound(resource, SoundActions.BUCKET_EMPTY);
-                level.playSound(player, pos, soundevent, SoundSource.BLOCKS, 1.0F, 1.0F);
+
+                if (soundevent != null)
+                {
+                    level.playSound(player, pos, soundevent, SoundSource.BLOCKS, 1.0F, 1.0F);
+                }
+
                 return true;
             }
         }

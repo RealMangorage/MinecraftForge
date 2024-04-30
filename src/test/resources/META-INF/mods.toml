@@ -26,6 +26,15 @@ modId="mdk_datagen"
     modId="shader_resources_test"
 [[mods]]
     modId="crash_callable_test"
+[[mods]]
+    modId="deferred_work_queue_test"
+[[mods]]
+    modId="custom_game_rule_test"
+[[mods]]
+    modId="custom_preset_editor_test"
+
+#[[mods]]
+#    modId="constructor_throw_test"
 
 # LEGACY TEST CASES
 ###### The mods below are from the old test framework and need to be yeeted later again.
@@ -287,6 +296,12 @@ modId="render_level_stages_test"
 modId="trade_with_villager_event_test"
 [[mods]]
 modId="chunk_event_load_new_chunk_test"
+[[mods]]
+modId="alter_ground_event_test"
+[[mods]]
+modId="custom_fluid_container_test"
+[[mods]]
+    modId="keymapping_test"
 
 
 # ADD ABOVE THIS LINE

@@ -1,3 +1,4 @@
+import de.undercouch.gradle.tasks.download.Download
 import groovy.json.JsonBuilder
 import net.minecraftforge.forge.tasks.checks.CheckATs
 import net.minecraftforge.forge.tasks.checks.CheckExcs
@@ -23,12 +24,12 @@ import org.objectweb.asm.Opcodes
 
 plugins {
     id 'org.cadixdev.licenser' version '0.6.1'
-    id 'com.github.ben-manes.versions' version '0.36.0'
-    id 'net.minecraftforge.gradleutils' version '2.+'
+    id 'com.github.ben-manes.versions' version '0.46.0'
+    id 'net.minecraftforge.gradleutils' version '[2.2,2.3)'
     id 'eclipse'
-    id 'de.undercouch.download' version '5.1.3'
-    id 'net.minecraftforge.gradle.patcher' version '[5.1.50,5.2.0)' apply false
-    id 'net.minecraftforge.gradle.mcp' version '[5.1.50,5.2.0)' apply false
+    id 'de.undercouch.download' version '5.4.0'
+    id 'net.minecraftforge.gradle.patcher' version '[6.0,6.2)' apply false
+    id 'net.minecraftforge.gradle.mcp' version '[6.0,6.2)' apply false
 }
 
 Util.init() //Init all our extension methods!
@@ -54,8 +55,8 @@ ext {
     MODLAUNCHER_VERSION = '10.0.8'
     SECUREJARHANDLER_VERSION = '2.1.6'
     BOOTSTRAPLAUNCHER_VERSION = '1.1.2'
-    ASM_VERSION = '9.3'
-    INSTALLER_VERSION = '2.1.+'
+    ASM_VERSION = '9.7'
+    INSTALLER_VERSION = '2.2.+'
     MIXIN_VERSION = '0.8.5'
     TERMINALCONSOLEAPPENDER_VERSION = '1.2.0'
     JLINE_VERSION = '3.12.+'
@@ -81,7 +82,7 @@ ext {
     FORGE_VERSION = VERSION.substring(MC_VERSION.length() + 1)
 
     BINPATCH_TOOL = 'net.minecraftforge:binarypatcher:1.1.1:fatjar'
-    INSTALLER_TOOLS = 'net.minecraftforge:installertools:1.3.0'
+    INSTALLER_TOOLS = 'net.minecraftforge:installertools:1.4.1'
     JAR_SPLITTER = 'net.minecraftforge:jarsplitter:1.1.4'
     FART = 'net.minecraftforge:ForgeAutoRenamingTool:0.1.22:all'
     MIN_TAG_FOR_CHANGELOG = '41.0'
@@ -102,7 +103,7 @@ def extraTxts = [
     rootProject.tasks.createChangelog.outputFile
 ]
 
-task downloadVersionManifest(type: Download) {
+tasks.register('downloadVersionManifest', Download) {
     src 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json'
     dest file('build/versions/version_manifest.json')
     useETag 'all'
@@ -345,7 +346,7 @@ def sharedFmlonlyForge = { Project prj ->
     }
 
     prj.task([type: DownloadMavenArtifact], 'downloadInstaller') {
-        artifact = "net.minecraftforge:installer:${INSTALLER_VERSION}:shrunk"
+        artifact = "net.minecraftforge:installer:${INSTALLER_VERSION}:fatjar"
         changing = true
     }
 
@@ -884,6 +885,10 @@ project(':forge') {
     apply plugin: 'net.minecraftforge.gradle.patcher'
     apply plugin: 'org.cadixdev.licenser'
 
+    applyPatches { 
+        level 'WARNING'
+    }
+
     sourceSets {
         main {
             java {
@@ -1078,6 +1083,7 @@ project(':forge') {
                             '--mod', 'data_pack_registries_test',
                             '--mod', 'biome_modifiers_test',
                             '--mod', 'structure_modifiers_test',
+                            '--mod', 'custom_preset_editor_test',
                             '--output', rootProject.file('src/generated_test/resources/'),
                             '--existing', sourceSets.main.resources.srcDirs[0],
                             '--existing', sourceSets.test.resources.srcDirs[0]
@@ -1163,9 +1169,12 @@ project(':forge') {
         ]
     }
 
-    task crowdin(type: Crowdin) {
-        key = project.hasProperty('crowdinKey') ? project.crowdinKey : null
-        //TODO: Merge our english.json?
+    tasks.register('downloadCrowdin', Download) {
+        src 'https://files.minecraftforge.net/crowdin.zip'
+        dest file('build/crowdin.zip')
+        useETag 'all'
+        onlyIfModified true
+        quiet true
     }
 
     sharedFmlonlyForge.call(project)
@@ -1200,18 +1209,25 @@ project(':forge') {
             */
         }
     }
-    
+
     task findFinalizeSpawnTargets(type: BytecodePredicateFinder, dependsOn: ['createJoinedSRG']) {
         jar = createJoinedSRG.output
         output = rootProject.file('src/main/resources/coremods/finalize_spawn_targets.json')
         predicate = {
-            parent, node, insn -> 
+            parent, node, insn ->
                 'net/minecraft/world/level/BaseSpawner' != parent.name // Ignore this class as we special case it.
-                && insn.getOpcode() == Opcodes.INVOKEVIRTUAL 
-                && insn.name.equals('m_6518_') 
+                && insn.getOpcode() == Opcodes.INVOKEVIRTUAL
+                && insn.name.equals('m_6518_')
                 && insn.desc.equals('(Lnet/minecraft/world/level/ServerLevelAccessor;Lnet/minecraft/world/DifficultyInstance;Lnet/minecraft/world/entity/MobSpawnType;Lnet/minecraft/world/entity/SpawnGroupData;Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/world/entity/SpawnGroupData;')
         }
     }
+
+    tasks.register('validateDeprecations', ValidateDeprecations) {
+        input = tasks.jar.archiveFile
+        mcVersion = MC_VERSION
+    }
+
+    tasks.jar.finalizedBy 'validateDeprecations'
 
     tasks.register('checkAll') {
         dependsOn 'checkLicenses'
@@ -1257,7 +1273,7 @@ project(':forge') {
     }
 
     def baseForgeVersionProperty = project.objects.property(String)
-    baseForgeVersionProperty.set(project.provider { getLatestForgeVersion(MC_VERSION) }.map { MC_VERSION + '-' + it })
+    baseForgeVersionProperty.set(project.provider { TeamcityRequests.attemptFindBase(rootDir) ?: getLatestForgeVersion(MC_VERSION) })
     baseForgeVersionProperty.finalizeValueOnRead()
     def jarCompatibilityTaskSetup = { task ->
         task.group = 'jar compatibility'
@@ -1564,9 +1580,12 @@ project(':forge') {
         from extraTxts
 
         // add crowdin locales
-        from { crowdin.output.present && crowdin.output.get().asFile.exists() ? zipTree(crowdin.output) : null}
-        dependsOn crowdin
-        duplicatesStrategy = 'exclude'
+        from zipTree(downloadCrowdin.dest).matching {
+            include 'assets/forge/lang/*.json'
+        }
+
+        dependsOn downloadCrowdin
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
         doFirst {
             MANIFESTS.each{ pkg, values ->
@@ -1611,7 +1630,7 @@ project(':forge') {
                     exclude it
             }
             filter(ReplaceTokens, tokens: [
-                FORGE_VERSION: project.version,
+                FORGE_VERSION: FORGE_VERSION,
                 FORGE_GROUP: project.group,
                 FORGE_NAME: project.name,
                 MC_VERSION: MC_VERSION,
