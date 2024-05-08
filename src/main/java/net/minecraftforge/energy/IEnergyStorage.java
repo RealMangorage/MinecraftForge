@@ -6,6 +6,7 @@
 package net.minecraftforge.energy;
 
 import net.minecraftforge.common.capabilities.AutoRegisterCapability;
+import net.minecraftforge.items.component.IComponentFinalizable;
 
 /**
  * An energy storage is the unit of interaction with Energy inventories.
@@ -17,7 +18,7 @@ import net.minecraftforge.common.capabilities.AutoRegisterCapability;
  *
  */
 @AutoRegisterCapability
-public interface IEnergyStorage
+public interface IEnergyStorage extends IComponentFinalizable
 {
     /**
     * Adds energy to the storage. Returns quantity of energy that was accepted.

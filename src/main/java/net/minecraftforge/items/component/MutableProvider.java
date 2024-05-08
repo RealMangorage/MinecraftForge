@@ -1,5 +1,5 @@
 package net.minecraftforge.items.component;
 
-public interface MutableProvider<M> {
-    M mutable();
+public interface MutableProvider<M, O> {
+    M mutable(O object);
 }
