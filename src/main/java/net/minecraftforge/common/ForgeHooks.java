@@ -37,6 +37,7 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.Lifecycle;
 
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.commands.CommandSourceStack;
@@ -49,8 +50,12 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.component.TypedDataComponent;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.Connection;
 import net.minecraft.network.FriendlyByteBuf;
@@ -82,6 +87,7 @@ import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -101,6 +107,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -1278,5 +1285,199 @@ public final class ForgeHooks {
 
     public static DataComponentMap gatherItemComponents(Item item, DataComponentMap dataComponents) {
         return DataComponentMap.composite(dataComponents, ForgeEventFactory.gatherItemComponentsEvent(item, dataComponents).getDataComponentMap());
+    }
+
+    private static final ResourceLocation CUSTOM_COMPONENT_DATA = ResourceLocation.fromNamespaceAndPath("forge", "custom_component_data");
+    private static final ResourceLocation CUSTOM_COMPONENT_TYPE = ResourceLocation.fromNamespaceAndPath("forge", "custom_component_type");
+
+    @SuppressWarnings("unchecked")
+    private static <T> void encodeComponent(RegistryFriendlyByteBuf buf, DataComponentType<T> type, Object value) {
+        type.streamCodec().encode(buf, (T)value);
+    }
+
+    public static void decodeDataComponentPatch(RegistryFriendlyByteBuf registry, Map<DataComponentType<?>, Optional<?>> map) {
+        var custom = map.get(DataComponents.CUSTOM_DATA);
+        if (custom == null || !custom.isPresent())
+            return;
+
+        @SuppressWarnings("deprecation")
+        var nbt = ((CustomData)custom.get()).getUnsafe();
+        if (!nbt.contains(CUSTOM_COMPONENT_DATA.toString()))
+            return;
+
+        var data = nbt.getByteArray(CUSTOM_COMPONENT_DATA.toString());
+        var buf = registry.wrap(Unpooled.wrappedBuffer(data));
+
+        // Remove our wrapper data
+        if (buf.readBoolean())
+            map.remove(DataComponents.CUSTOM_DATA);
+        else
+            nbt.remove(CUSTOM_COMPONENT_DATA.toString());
+
+        var added = buf.readVarInt();
+        var removed = buf.readVarInt();
+
+        for (int x = 0; x < added; x++) {
+            var key = buf.readResourceLocation();
+            var type = BuiltInRegistries.DATA_COMPONENT_TYPE.get(key);
+            var size = buf.readVarInt();
+            if (type == null) {
+                LOGGER.debug(FORGEHOOKS, "Unknown component type: {} Size: {}", key, size);
+                buf.skipBytes(size);
+            } else {
+                var value = type.streamCodec().decode(buf);
+                map.put(type, Optional.of(value));
+            }
+        }
+
+        for (int x = 0; x < removed; x++) {
+            var key = buf.readResourceLocation();
+            var type = BuiltInRegistries.DATA_COMPONENT_TYPE.get(key);
+            if (type != null)
+                map.put(type, Optional.empty());
+        }
+    }
+
+    public static boolean encodeDataComponentPatch(RegistryFriendlyByteBuf buf, DataComponentPatch patch) {
+        if (patch.isEmpty())
+            return false;
+
+        record Entry(DataComponentType<?> type, Object value) {}
+
+        int add = 0;
+        var added = new Entry[patch.size()];
+        int remove = 0;
+        var removed = new DataComponentType[patch.size()];
+
+        int addW = 0;
+        var addedW = new Entry[patch.size()];
+        int removeW = 0;
+        var removedW = new ResourceLocation[patch.size()];
+
+        int nbt = -1;
+
+        for (var entry : patch.entrySet()) {
+            var type = entry.getKey();
+            var key = BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(type);
+
+            if ("minecraft".equals(key.getNamespace())) { // TODO: Capture vanilla entries, so that we don't guess based on namespace
+                if (entry.getValue().isPresent()) {
+                    if (type == DataComponents.CUSTOM_DATA)
+                        nbt = add;
+                    added[add++] = new Entry(type, entry.getValue().get());
+                } else
+                    removed[remove++] = type;
+            } else {
+                if (entry.getValue().isPresent())
+                    addedW[addW++] = new Entry(type, entry.getValue().get());
+                else
+                    removedW[removeW++] = key;
+            }
+        }
+
+        if (addW == 0 && removeW == 0) // No non vanilla entries, use the vanilla encoding.
+            return false;
+
+        var customData = buf.wrap(Unpooled.buffer());
+        var customTemp = buf.wrap(Unpooled.buffer());
+
+        customData.writeBoolean(nbt == -1); // If we didn't see NBT, then we need to remove the wrapper
+        // After this, is almost the same format as vanilla, except I add a VarInt size before added entries so that,
+        // if the client doesn't know about the component type, it can safely skip the data.
+
+        customData.writeVarInt(addW);
+        customData.writeVarInt(removeW);
+        for (int x = 0; x < addW; x++) {
+            var entry = addedW[x];
+            customTemp.clear(); // Reuse the temp buffer
+            encodeComponent(customTemp, entry.type(), entry.value()); // Encode the component to a temp buffer
+
+            var key = BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(entry.type());
+            customData.writeResourceLocation(key);
+            customData.writeVarInt(customTemp.readableBytes()); // Write how much data this component takes up
+            customData.writeBytes(customTemp); // And now write the component to the real buffer
+        }
+
+        for (int x = 0; x < removeW; x++) {
+            customData.writeResourceLocation(removedW[x]);
+        }
+
+        // Add CUSTOM_DATA if it doesn't exist
+        if (nbt == -1) {
+            nbt = add;
+            added[add++] = new Entry(DataComponents.CUSTOM_DATA, CustomData.of(new CompoundTag()));
+        }
+
+        // Store our custom components in the CUSTOM_DATA NBT.
+        var data = (CustomData)added[nbt].value();
+        var tmp = new byte[customData.readableBytes()];
+        customData.readBytes(tmp);
+        added[nbt] = new Entry(DataComponents.CUSTOM_DATA, data.update(tag -> {
+            tag.putByteArray(CUSTOM_COMPONENT_DATA.toString(), tmp);
+        }));
+
+        // write the actual packet data with vanilla entries only
+        buf.writeVarInt(add);
+        buf.writeVarInt(remove);
+
+        for (int x = 0; x < add; x++) {
+            var entry = added[x];
+            DataComponentType.STREAM_CODEC.encode(buf, entry.type());
+            encodeComponent(buf, entry.type(), entry.value());
+        }
+
+        for (int x = 0; x < remove; x++) {
+            DataComponentType.STREAM_CODEC.encode(buf, removed[x]);
+        }
+
+        return true;
+    }
+
+    public static StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<?>> typedDataComponentCodec(StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<?>> vanilla) {
+        return new StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<?>>() {
+            @Override
+            public TypedDataComponent<?> decode(RegistryFriendlyByteBuf registry) {
+                var ret = vanilla.decode(registry);
+                if (ret.type() == DataComponents.CUSTOM_DATA && ret.value() instanceof CompoundTag nbt && nbt.contains(CUSTOM_COMPONENT_TYPE.toString(), Tag.TAG_STRING)) {
+                    var key = ResourceLocation.parse(nbt.getString(CUSTOM_COMPONENT_TYPE.toString()));
+                    var type = BuiltInRegistries.DATA_COMPONENT_TYPE.get(key);
+                    if (type == null) {
+                        LOGGER.debug(FORGEHOOKS, "Unknown component type: {} Size: {}", key);
+                        throw new DecoderException("Unknown Component type: " + key);
+                    }
+                    if (!nbt.contains(CUSTOM_COMPONENT_DATA.toString(), Tag.TAG_BYTE_ARRAY)) {
+                        LOGGER.debug(FORGEHOOKS, "Missing component data for {}" + key);
+                        throw new DecoderException("Missing component data for " + key);
+                    }
+                    var data = nbt.getByteArray(CUSTOM_COMPONENT_DATA.toString());
+                    var buf = registry.wrap(Unpooled.wrappedBuffer(data));
+                    var value = type.streamCodec().decode(buf);
+                    ret = TypedDataComponent.createUnchecked(type, value);
+                }
+                return ret;
+            }
+
+            @Override
+            public void encode(RegistryFriendlyByteBuf buf, TypedDataComponent<?> value) {
+                var key = BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(value.type());
+                if ("minecraft".equals(key.getNamespace())) { // TODO: Capture vanilla entries, so that we don't guess based on namespace
+                    vanilla.encode(buf, value);
+                    return;
+                }
+
+                var tmp = buf.wrap(Unpooled.buffer());
+                encodeComponent(tmp, value.type(), value.value());
+
+                var data = new byte[tmp.readableBytes()];
+                tmp.readBytes(data);
+
+                var nbt = new CompoundTag();
+                nbt.putString(CUSTOM_COMPONENT_TYPE.toString(), key.toString());
+                nbt.putByteArray(CUSTOM_COMPONENT_DATA.toString(), data);
+
+                var newValue = new TypedDataComponent<>(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+                vanilla.encode(buf, newValue);
+            }
+        };
     }
 }

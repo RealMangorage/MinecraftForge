@@ -1,0 +1,20 @@
+--- a/net/minecraft/core/component/TypedDataComponent.java
++++ b/net/minecraft/core/component/TypedDataComponent.java
+@@ -8,7 +_,7 @@
+ import net.minecraft.network.codec.StreamCodec;
+ 
+ public record TypedDataComponent<T>(DataComponentType<T> type, T value) {
+-    public static final StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<?>> STREAM_CODEC = new StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<?>>() {
++    public static final StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<?>> STREAM_CODEC = net.minecraftforge.common.ForgeHooks.typedDataComponentCodec(new StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<?>>() {
+         public TypedDataComponent<?> decode(RegistryFriendlyByteBuf p_333264_) {
+             DataComponentType<?> datacomponenttype = DataComponentType.STREAM_CODEC.decode(p_333264_);
+             return decodeTyped(p_333264_, (DataComponentType)datacomponenttype);
+@@ -26,7 +_,7 @@
+             DataComponentType.STREAM_CODEC.encode(p_331689_, p_331096_.type());
+             p_331096_.type().streamCodec().encode(p_331689_, p_331096_.value());
+         }
+-    };
++    });
+ 
+     static TypedDataComponent<?> fromEntryUnchecked(Entry<DataComponentType<?>, Object> p_335332_) {
+         return createUnchecked(p_335332_.getKey(), p_335332_.getValue());

@@ -1,0 +1,18 @@
+--- a/net/minecraft/network/codec/IdDispatchCodec.java
++++ b/net/minecraft/network/codec/IdDispatchCodec.java
+@@ -30,6 +_,7 @@
+             try {
+                 return (V)entry.serializer.decode(p_327793_);
+             } catch (Exception exception) {
++                exception.printStackTrace(); // Print the stack trace so that we have more info in the logs
+                 throw new DecoderException("Failed to decode packet '" + entry.type + "'", exception);
+             }
+         } else {
+@@ -50,6 +_,7 @@
+                 StreamCodec<? super B, V> streamcodec = (StreamCodec<? super B, V>)entry.serializer;
+                 streamcodec.encode(p_336072_, p_327912_);
+             } catch (Exception exception) {
++                exception.printStackTrace(); // Print the stack trace so that we have more info in the logs
+                 throw new EncoderException("Failed to encode packet '" + t + "'", exception);
+             }
+         }

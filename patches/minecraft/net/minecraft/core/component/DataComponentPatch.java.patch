@@ -1,0 +1,19 @@
+--- a/net/minecraft/core/component/DataComponentPatch.java
++++ b/net/minecraft/core/component/DataComponentPatch.java
+@@ -76,6 +_,7 @@
+                     reference2objectmap.put(datacomponenttype1, Optional.empty());
+                 }
+ 
++                net.minecraftforge.common.ForgeHooks.decodeDataComponentPatch(p_330298_, reference2objectmap);
+                 return new DataComponentPatch(reference2objectmap);
+             }
+         }
+@@ -85,6 +_,8 @@
+                 p_334360_.writeVarInt(0);
+                 p_334360_.writeVarInt(0);
+             } else {
++                if (net.minecraftforge.common.ForgeHooks.encodeDataComponentPatch(p_334360_, p_336144_))
++                    return;
+                 int i = 0;
+                 int j = 0;
+ 
