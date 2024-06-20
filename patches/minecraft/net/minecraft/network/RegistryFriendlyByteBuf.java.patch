@@ -1,14 +1,37 @@
 --- a/net/minecraft/network/RegistryFriendlyByteBuf.java
 +++ b/net/minecraft/network/RegistryFriendlyByteBuf.java
-@@ -16,6 +_,11 @@
+@@ -4,19 +_,31 @@
+ import java.util.function.Function;
+ import net.minecraft.core.RegistryAccess;
+ 
+-public class RegistryFriendlyByteBuf extends FriendlyByteBuf {
++public class RegistryFriendlyByteBuf extends FriendlyByteBuf implements net.minecraftforge.network.IForgeRegistryFriendlyByteBuf {
+     private final RegistryAccess registryAccess;
++    private final net.minecraft.network.Connection connection;
+ 
+-    public RegistryFriendlyByteBuf(ByteBuf p_333796_, RegistryAccess p_330009_) {
++    public RegistryFriendlyByteBuf(ByteBuf p_333796_, RegistryAccess p_330009_, @javax.annotation.Nullable net.minecraft.network.Connection connection) {
+         super(p_333796_);
+         this.registryAccess = p_330009_;
++        this.connection = connection;
+     }
+ 
+     public RegistryAccess registryAccess() {
          return this.registryAccess;
      }
  
 +    @Override
 +    public RegistryFriendlyByteBuf wrap(ByteBuf data) {
-+        return new RegistryFriendlyByteBuf(data, this.registryAccess);
++        return new RegistryFriendlyByteBuf(data, this.registryAccess, null);
 +    }
 +
      public static Function<ByteBuf, RegistryFriendlyByteBuf> decorator(RegistryAccess p_336066_) {
-         return p_328649_ -> new RegistryFriendlyByteBuf(p_328649_, p_336066_);
+-        return p_328649_ -> new RegistryFriendlyByteBuf(p_328649_, p_336066_);
++        return p_328649_ -> new RegistryFriendlyByteBuf(p_328649_, p_336066_, null);
++    }
++
++    @Override
++    public net.minecraft.network.Connection getConnection() {
++        return connection;
      }
+ }
