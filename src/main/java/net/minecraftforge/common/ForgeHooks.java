@@ -1339,6 +1339,7 @@ public final class ForgeHooks {
     }
 
     public static boolean encodeDataComponentPatch(RegistryFriendlyByteBuf buf, DataComponentPatch patch) {
+        if (buf.getConnectionType() == ConnectionType.MODDED) return false; // The Target is MODDED, dont give them more work, just send it as is, no need for NBT hack.
         if (patch.isEmpty())
             return false;
 

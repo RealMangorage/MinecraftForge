@@ -21,7 +21,6 @@ public interface IForgeRegistryFriendlyByteBuf {
     Connection getConnection();
 
     static Function<ByteBuf, RegistryFriendlyByteBuf> decorator(RegistryAccess p_336066_, Connection connection) {
-        net.minecraft.server.network.ServerConfigurationPacketListenerImpl#handleConfigurationFinished
         return p_328649_ -> new RegistryFriendlyByteBuf(p_328649_, p_336066_, connection);
     }
 }
