@@ -1,0 +1,29 @@
+--- a/net/minecraft/world/level/block/entity/BlockEntityType.java
++++ b/net/minecraft/world/level/block/entity/BlockEntityType.java
+@@ -219,7 +_,7 @@
+     public static final BlockEntityType<TrialSpawnerBlockEntity> TRIAL_SPAWNER = register("trial_spawner", TrialSpawnerBlockEntity::new, Blocks.TRIAL_SPAWNER);
+     public static final BlockEntityType<VaultBlockEntity> VAULT = register("vault", VaultBlockEntity::new, Blocks.VAULT);
+     private final BlockEntityType.BlockEntitySupplier<? extends T> factory;
+-    private final Set<Block> validBlocks;
++    private final net.minecraftforge.common.util.ValidBlocksSet validBlocks;
+     private final Holder.Reference<BlockEntityType<?>> builtInRegistryHolder = BuiltInRegistries.BLOCK_ENTITY_TYPE.createIntrusiveHolder(this);
+ 
+     @Nullable
+@@ -240,7 +_,7 @@
+ 
+     public BlockEntityType(BlockEntityType.BlockEntitySupplier<? extends T> p_155259_, Set<Block> p_155260_) {
+         this.factory = p_155259_;
+-        this.validBlocks = p_155260_;
++        this.validBlocks = new net.minecraftforge.common.util.ValidBlocksSet(p_155260_);
+     }
+ 
+     @Nullable
+@@ -249,7 +_,7 @@
+     }
+ 
+     public boolean isValid(BlockState p_155263_) {
+-        return this.validBlocks.contains(p_155263_.getBlock());
++        return this.validBlocks.contains(p_155263_.getBlock(), this);
+     }
+ 
+     @Deprecated
