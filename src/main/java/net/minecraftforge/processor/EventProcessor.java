@@ -31,10 +31,19 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 @ApiStatus.Internal
 public class EventProcessor extends DefaultProcessor {
+    enum Bus {
+        FORGE,
+        MOD,
+        UNKNOWN
+    }
+
+
     private static final String TARGET_INTERFACE = IModBusEvent.class.getName();
 
     @Override
@@ -57,38 +66,26 @@ public class EventProcessor extends DefaultProcessor {
                 .forEach(event -> {
                     if (event.getKind() == ElementKind.METHOD) {
                         var superType = event.getEnclosingElement();
-                        Mod.EventBusSubscriber subscriber = superType.getAnnotation(Mod.EventBusSubscriber.class);
-                        if (subscriber != null) {
-                            if (event.getModifiers().contains(Modifier.STATIC) && event.getModifiers().contains(Modifier.PRIVATE)) {
-                                getEnv()
-                                        .getMessager()
-                                        .printError(
-                                                "EventBusSubscriber present, found method that should be public static",
-                                                event
-                                        );
-                            } else {
-                                var bus = subscriber.bus();
-                                var param = event.getEnclosedElements()
-                                        .stream()
-                                        .filter(element -> element.getKind() == ElementKind.PARAMETER)
-                                        .findAny();
-                                param.ifPresent(p -> {
-                                    if (findSpecificInterface(p.asType()) && bus != Mod.EventBusSubscriber.Bus.MOD) {
-                                        getEnv()
-                                                .getMessager()
-                                                .printError(
-                                                        "Event Listener using incorrect event, event is a modEvent",
-                                                        p
-                                                );
-                                    }
-                                });
-                            }
-                        }
+                        var busType = getBus(Mod.EventBusSubscriber.class, superType);
+                        System.out.println(busType);
                     }
                 });
 
         return true;
     }
+
+    private Bus getBus(Class<? extends Annotation> annotation, Element element) {
+        AtomicReference<Bus> result = new AtomicReference<>(Bus.UNKNOWN);
+        for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
+            if (annotationMirror.getAnnotationType().toString().equals(annotation.getName())) {
+                annotationMirror.getElementValues().forEach((k, v) -> {
+                    System.out.println(v.getValue());
+                });
+            }
+        }
+        return result.get();
+    }
+
 
     private boolean findSpecificInterface(TypeMirror typeMirror) {
         Types types = getEnv().getTypeUtils();
