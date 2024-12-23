@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
-package net.minecraftforge.processor;
+package net.minecraftforge.annotationprocessor;
 
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -18,7 +18,6 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
-import javax.tools.Diagnostic;
 import java.lang.annotation.Annotation;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -87,7 +86,6 @@ public class EventProcessor extends DefaultProcessor {
                                 return;
                             }
                         }
-
 
                         if (event instanceof ExecutableElement executableElement) {
                             var params = executableElement.getParameters();

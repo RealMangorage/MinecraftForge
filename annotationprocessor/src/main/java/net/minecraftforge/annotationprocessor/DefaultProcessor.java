@@ -1,4 +1,4 @@
-package net.minecraftforge.processor;
+package net.minecraftforge.annotationprocessor;
 
 import javax.annotation.processing.Completion;
 import javax.annotation.processing.ProcessingEnvironment;

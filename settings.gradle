@@ -116,6 +116,7 @@ include 'mclanguage'
 include 'javafmllanguage'
 include 'lowcodelanguage'
 include 'fmlearlydisplay'
+include 'annotationprocessor'
 
 include ':mcp'
 project(":mcp").projectDir = file("projects/mcp")
@@ -129,3 +130,4 @@ if (!System.env.TEAMCITY_VERSION) {
     project(':clean').projectDir = file('projects/clean')
     project(':clean').buildFileName = '../../build_clean.gradle'
 }
+
