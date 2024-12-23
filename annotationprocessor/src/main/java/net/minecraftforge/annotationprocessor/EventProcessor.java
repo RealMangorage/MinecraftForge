@@ -5,6 +5,7 @@
 
 package net.minecraftforge.annotationprocessor;
 
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.IModBusEvent;
@@ -98,7 +99,17 @@ public class EventProcessor extends DefaultProcessor {
                                         );
                             } else {
                                 var param = params.getFirst();
-                                var isModEvent = hasInterface(IModBusEvent.class, param.asType());
+                                if (!isAssignable(Event.class, param.asType())) {
+                                    getEnv()
+                                            .getMessager()
+                                            .printError(
+                                                    "EventType does not extend or inherit %s".formatted(Event.class.getCanonicalName()),
+                                                    param
+                                            );
+                                    return;
+                                }
+
+                                var isModEvent = isAssignable(IModBusEvent.class, param.asType());
                                 if (isModEvent && busType == Bus.FORGE) {
                                     getEnv()
                                             .getMessager()
@@ -138,7 +149,7 @@ public class EventProcessor extends DefaultProcessor {
     }
 
 
-    private boolean hasInterface(Class<?> interfaceType, TypeMirror typeMirror) {
+    private boolean isAssignable(Class<?> interfaceType, TypeMirror typeMirror) {
         return getEnv().getTypeUtils().isAssignable(
                 typeMirror,
                 getEnv().getElementUtils().getTypeElement(

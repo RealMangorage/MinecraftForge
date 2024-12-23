@@ -26,6 +26,9 @@ public abstract class DefaultProcessor implements Processor {
 
     private ProcessingEnvironment env;
 
+    /**
+     * @return {@link ProcessingEnvironment}
+     */
     protected ProcessingEnvironment getEnv() {
         return env;
     }
@@ -35,6 +38,12 @@ public abstract class DefaultProcessor implements Processor {
         return Set.of();
     }
 
+
+    /**
+     * All the {@link Annotation}'s that you want this Processor to process
+     *
+     * @return A {@link Set} of Classes of {@link Annotation}
+     */
     protected abstract Set<Class<? extends Annotation>> getSupportedAnnotations();
 
     @Override
@@ -44,6 +53,9 @@ public abstract class DefaultProcessor implements Processor {
         return processDefault(annotations, roundEnv);
     }
 
+    /**
+     * Simple bouncer method to ensure mandatory code is ran.
+     */
     public abstract boolean processDefault(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv);
 
     @Override
@@ -70,5 +82,6 @@ public abstract class DefaultProcessor implements Processor {
     }
 
     public abstract String getId();
+
     public abstract String getVersion();
 }
