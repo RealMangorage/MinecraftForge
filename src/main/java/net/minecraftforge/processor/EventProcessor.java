@@ -67,7 +67,36 @@ public class EventProcessor extends DefaultProcessor {
                     if (event.getKind() == ElementKind.METHOD) {
                         var superType = event.getEnclosingElement();
                         var busType = getBus(Mod.EventBusSubscriber.class, superType);
-                        System.out.println(busType);
+                        if (busType == Bus.UNKNOWN) return; // TODO: Make Error
+                        if (event instanceof ExecutableElement executableElement) {
+                            var params = executableElement.getParameters();
+                            if (params.size() != 1) {
+                                getEnv()
+                                        .getMessager()
+                                        .printError(
+                                                "Event Listener can only have one Parameter",
+                                                event
+                                        );
+                            } else {
+                                var param = params.getFirst();
+                                var isModEvent = findSpecificInterface(param.asType());
+                                if (isModEvent && busType == Bus.FORGE) {
+                                    getEnv()
+                                            .getMessager()
+                                            .printError(
+                                                    "EventType does not belong on the Forge Bus, belongs onn ModBus",
+                                                    param
+                                            );
+                                } else if (!isModEvent && busType == Bus.MOD) {
+                                    getEnv()
+                                            .getMessager()
+                                            .printError(
+                                                    "EventType does not belong on the Mod Bus, belongs on Forge Bus",
+                                                    param
+                                            );
+                                }
+                            }
+                        }
                     }
                 });
 
@@ -78,8 +107,11 @@ public class EventProcessor extends DefaultProcessor {
         AtomicReference<Bus> result = new AtomicReference<>(Bus.UNKNOWN);
         for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
             if (annotationMirror.getAnnotationType().toString().equals(annotation.getCanonicalName())) {
+                result.set(Bus.FORGE);
                 annotationMirror.getElementValues().forEach((k, v) -> {
-                    System.out.println(v.getValue());
+                    if (k.toString().equals("bus()") && v.getValue().toString().equals("MOD")) {
+                        result.set(Bus.MOD);
+                    }
                 });
             }
         }
