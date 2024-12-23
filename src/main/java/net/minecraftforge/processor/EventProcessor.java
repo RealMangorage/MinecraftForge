@@ -79,7 +79,7 @@ public class EventProcessor extends DefaultProcessor {
                                         );
                             } else {
                                 var param = params.getFirst();
-                                var isModEvent = findSpecificInterface(param.asType());
+                                var isModEvent = hasInterface(IModBusEvent.class, param.asType());
                                 if (isModEvent && busType == Bus.FORGE) {
                                     getEnv()
                                             .getMessager()
@@ -119,27 +119,12 @@ public class EventProcessor extends DefaultProcessor {
     }
 
 
-    private boolean findSpecificInterface(TypeMirror typeMirror) {
-        Types types = getEnv().getTypeUtils();
-        Element element = types.asElement(typeMirror);
-
-        if (element instanceof TypeElement typeElement) {
-            // Check if the type implements the target interface directly
-            if (typeElement.getQualifiedName().toString().equals(TARGET_INTERFACE)) {
-                System.out.println(typeElement.getSimpleName() + " implements " + TARGET_INTERFACE);
-                return true;
-            }
-
-            // Otherwise, check if one of the interfaces implemented by the class is the target interface
-            List<? extends TypeMirror> interfaces = typeElement.getInterfaces();
-            for (TypeMirror iface : interfaces) {
-                if (iface.toString().equals(TARGET_INTERFACE)) {
-                    System.out.println(typeElement.getSimpleName() + " implements interface: " + TARGET_INTERFACE);
-                    return true;
-                }
-            }
-        }
-
-        return false; // No match found
+    private boolean hasInterface(Class<?> interfaceType, TypeMirror typeMirror) {
+        return getEnv().getTypeUtils().isAssignable(
+                typeMirror,
+                getEnv().getElementUtils().getTypeElement(
+                        interfaceType.getCanonicalName()
+                ).asType()
+        );
     }
 }
