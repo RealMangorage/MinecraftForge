@@ -68,6 +68,14 @@ public class EventProcessor extends DefaultProcessor {
                         var superType = event.getEnclosingElement();
                         var busType = getBus(Mod.EventBusSubscriber.class, superType);
                         if (busType == Bus.UNKNOWN) return; // TODO: Make Error
+                        if (event.getModifiers().contains(Modifier.STATIC) && event.getModifiers().contains(Modifier.PRIVATE)) {
+                            getEnv().getMessager()
+                                    .printError(
+                                            "EventListener cannot be private and static, make it public static",
+                                            event
+                                    );
+                            return;
+                        }
                         if (event instanceof ExecutableElement executableElement) {
                             var params = executableElement.getParameters();
                             if (params.size() != 1) {
@@ -84,7 +92,7 @@ public class EventProcessor extends DefaultProcessor {
                                     getEnv()
                                             .getMessager()
                                             .printError(
-                                                    "EventType does not belong on the Forge Bus, belongs onn ModBus",
+                                                    "EventType does not belong on the Forge Bus, belongs on ModBus",
                                                     param
                                             );
                                 } else if (!isModEvent && busType == Bus.MOD) {
