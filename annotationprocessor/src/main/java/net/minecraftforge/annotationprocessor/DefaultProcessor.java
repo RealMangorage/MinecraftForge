@@ -60,7 +60,6 @@ public abstract class DefaultProcessor implements Processor {
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        System.out.println("Get Types");
         return getSupportedAnnotations()
                 .stream()
                 .map(Class::getCanonicalName)
