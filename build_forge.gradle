@@ -147,6 +147,8 @@ dependencies {
 
     runtimeOnly(libs.bootstrap)
     runtimeOnly(libs.bootstrap.dev)
+
+    annotationProcessor(project(":annotationprocessor"))
 }
 
 tasks.named('extractRangeMap').configure {

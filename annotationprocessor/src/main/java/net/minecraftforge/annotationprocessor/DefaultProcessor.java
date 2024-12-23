@@ -1,5 +1,7 @@
 package net.minecraftforge.annotationprocessor;
 
+import org.jetbrains.annotations.ApiStatus;
+
 import javax.annotation.processing.Completion;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@ApiStatus.Internal
 public abstract class DefaultProcessor implements Processor {
 
     private ProcessingEnvironment env;

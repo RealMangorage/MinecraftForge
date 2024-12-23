@@ -15,6 +15,9 @@ dependencies {
     api(libs.eventbus)
 
     implementation(project(':fmlloader'))
+    implementation(project(':fmlcore'))
+    implementation(project(':javafmllanguage'))
+
     implementation(libs.commons.io)
 }
 
