@@ -31,7 +31,8 @@ public abstract class DefaultProcessor implements Processor {
 
     @Override
     public final boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        getEnv().getMessager().printMessage(Diagnostic.Kind.NOTE, getProcessorInfo());
+        if (!roundEnv.processingOver())
+            getEnv().getMessager().printMessage(Diagnostic.Kind.NOTE, getProcessorInfo());
         return processDefault(annotations, roundEnv);
     }
 
