@@ -66,8 +66,8 @@ public class EventProcessor extends DefaultProcessor {
                                                 "Listener needs to be public",
                                                 event
                                         );
+                                return;
                             }
-                            return;
                         } else {
                             if (event.getModifiers().contains(Modifier.STATIC) && event.getModifiers().contains(Modifier.PRIVATE)) {
                                 getEnv()
