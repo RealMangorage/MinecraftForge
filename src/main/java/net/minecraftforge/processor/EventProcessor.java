@@ -31,9 +31,6 @@ public class EventProcessor extends DefaultProcessor {
         UNKNOWN
     }
 
-
-    private static final String TARGET_INTERFACE = IModBusEvent.class.getName();
-
     @Override
     protected Set<Class<? extends Annotation>> getSupportedAnnotations() {
         return Set.of(
@@ -42,14 +39,22 @@ public class EventProcessor extends DefaultProcessor {
     }
 
     @Override
+    public String getId() {
+        return "ForgeEventBusSubscriber";
+    }
+
+    @Override
+    public String getVersion() {
+        return "1.0.0";
+    }
+
+    @Override
     public SourceVersion getSupportedSourceVersion() {
         return SourceVersion.latest();
     }
 
     @Override
-    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        getEnv().getMessager().printMessage(Diagnostic.Kind.NOTE, "lol test");
-
+    public boolean processDefault(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         roundEnv.getElementsAnnotatedWith(SubscribeEvent.class)
                 .forEach(event -> {
                     if (event.getKind() == ElementKind.METHOD) {

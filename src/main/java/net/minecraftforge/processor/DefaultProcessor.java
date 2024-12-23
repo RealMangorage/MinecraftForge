@@ -1,13 +1,14 @@
 package net.minecraftforge.processor;
 
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import javax.annotation.processing.Completion;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
-import javax.lang.model.SourceVersion;
+import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Set;
@@ -23,11 +24,18 @@ public abstract class DefaultProcessor implements Processor {
 
     @Override
     public Set<String> getSupportedOptions() {
-        System.out.println("Get Options");
         return Set.of();
     }
 
     protected abstract Set<Class<? extends Annotation>> getSupportedAnnotations();
+
+    @Override
+    public final boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        getEnv().getMessager().printMessage(Diagnostic.Kind.NOTE, getProcessorInfo());
+        return processDefault(annotations, roundEnv);
+    }
+
+    public abstract boolean processDefault(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv);
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
@@ -40,13 +48,18 @@ public abstract class DefaultProcessor implements Processor {
 
     @Override
     public void init(ProcessingEnvironment processingEnv) {
-        System.out.println("INIT AP");
         this.env = processingEnv;
     }
 
     @Override
     public List<? extends Completion> getCompletions(Element element, AnnotationMirror annotation, ExecutableElement member, String userText) {
-        System.out.println("Get Completions");
         return List.of();
     }
+
+    public String getProcessorInfo() {
+        return "Annotation Processor: %s Version: %s".formatted(getId(), getVersion());
+    }
+
+    public abstract String getId();
+    public abstract String getVersion();
 }
