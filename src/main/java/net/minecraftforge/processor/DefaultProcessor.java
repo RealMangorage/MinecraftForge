@@ -34,8 +34,7 @@ public abstract class DefaultProcessor implements Processor {
         System.out.println("Get Types");
         return getSupportedAnnotations()
                 .stream()
-                .map(Class::getName)
-                .map(name -> name.replaceAll("\\$", "."))
+                .map(Class::getCanonicalName)
                 .collect(Collectors.toSet());
     }
 

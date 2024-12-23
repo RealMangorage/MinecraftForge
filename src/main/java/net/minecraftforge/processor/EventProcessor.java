@@ -77,7 +77,7 @@ public class EventProcessor extends DefaultProcessor {
     private Bus getBus(Class<? extends Annotation> annotation, Element element) {
         AtomicReference<Bus> result = new AtomicReference<>(Bus.UNKNOWN);
         for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
-            if (annotationMirror.getAnnotationType().toString().equals(annotation.getName())) {
+            if (annotationMirror.getAnnotationType().toString().equals(annotation.getCanonicalName())) {
                 annotationMirror.getElementValues().forEach((k, v) -> {
                     System.out.println(v.getValue());
                 });
