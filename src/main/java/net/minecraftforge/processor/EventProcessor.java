@@ -78,6 +78,9 @@ public class EventProcessor extends DefaultProcessor {
                                         );
                                 return;
                             }
+                            if (!event.getModifiers().contains(Modifier.STATIC)) {
+                                return;
+                            }
                         }
 
 
