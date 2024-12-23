@@ -5,17 +5,10 @@
 
 package net.minecraftforge.processor;
 
-import com.sun.source.tree.ModifiersTree;
-import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.IModBusEvent;
 import org.jetbrains.annotations.ApiStatus;
-
-import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.Completion;
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
@@ -25,13 +18,8 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.lang.annotation.Annotation;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -67,15 +55,32 @@ public class EventProcessor extends DefaultProcessor {
                     if (event.getKind() == ElementKind.METHOD) {
                         var superType = event.getEnclosingElement();
                         var busType = getBus(Mod.EventBusSubscriber.class, superType);
-                        if (busType == Bus.UNKNOWN) return; // TODO: Make Error
-                        if (event.getModifiers().contains(Modifier.STATIC) && event.getModifiers().contains(Modifier.PRIVATE)) {
-                            getEnv().getMessager()
-                                    .printError(
-                                            "EventListener cannot be private and static, make it public static",
-                                            event
-                                    );
+                        var hasModAnnotation = superType.getAnnotation(Mod.class) != null;
+                        if (busType == Bus.UNKNOWN) return;
+
+                        if (hasModAnnotation) {
+                            if (!event.getModifiers().contains(Modifier.PUBLIC)) {
+                                getEnv()
+                                        .getMessager()
+                                        .printError(
+                                                "Listener needs to be public",
+                                                event
+                                        );
+                            }
                             return;
+                        } else {
+                            if (event.getModifiers().contains(Modifier.STATIC) && event.getModifiers().contains(Modifier.PRIVATE)) {
+                                getEnv()
+                                        .getMessager()
+                                        .printError(
+                                                "Listener needs to be public",
+                                                event
+                                        );
+                                return;
+                            }
                         }
+
+
                         if (event instanceof ExecutableElement executableElement) {
                             var params = executableElement.getParameters();
                             if (params.size() != 1) {
