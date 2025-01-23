@@ -6,10 +6,8 @@
 package net.minecraftforge.debug.gameplay.item;
 
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
@@ -19,10 +17,8 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.EnergyStorage;
-import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
@@ -34,9 +30,7 @@ import net.minecraftforge.registries.RegistryObject;
 import net.minecraftforge.test.BaseTestMod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 @GameTestHolder("forge." + ItemCapabilityTest.MOD_ID)
 @Mod(ItemCapabilityTest.MOD_ID)
@@ -81,80 +75,43 @@ public class ItemCapabilityTest extends BaseTestMod {
         });
     }
 
-    public static final class EnergyStorage implements IEnergyStorage {
+    public static final class MyEnergyStorage extends EnergyStorage {
 
-        protected int energy;
-        protected int capacity;
-        protected int maxReceive;
-        protected int maxExtract;
+        private final Consumer<EnergyStorage> consumer;
 
-        private Consumer<Integer> consumer;
-
-        public EnergyStorage(int capacity, Consumer<Integer> consumer) {
-            this(capacity, capacity, capacity, 0, consumer);
-        }
-
-        public EnergyStorage(int capacity, int maxTransfer, Consumer<Integer> consumer) {
-            this(capacity, maxTransfer, maxTransfer, 0, consumer);
-        }
-
-        public EnergyStorage(int capacity, int maxReceive, int maxExtract, Consumer<Integer> consumer) {
-            this(capacity, maxReceive, maxExtract, 0, consumer);
-        }
-
-        public EnergyStorage(int capacity, int maxReceive, int maxExtract, int energy, Consumer<Integer> consumer) {
-            this.capacity = capacity;
-            this.maxReceive = maxReceive;
-            this.maxExtract = maxExtract;
-            this.energy = Math.max(0 , Math.min(capacity, energy));
+        public MyEnergyStorage(int capacity, Consumer<EnergyStorage> consumer) {
+            super(capacity);
             this.consumer = consumer;
+        }
+
+        public MyEnergyStorage(int capacity, int maxTransfer, Consumer<EnergyStorage> consumer) {
+            super(capacity, maxTransfer);
+            this.consumer = consumer;
+        }
+
+        public MyEnergyStorage(int capacity, int maxReceive, int maxExtract, Consumer<EnergyStorage> consumer) {
+            super(capacity, maxReceive, maxExtract);
+            this.consumer = consumer;
+        }
+
+        public MyEnergyStorage(int capacity, int maxReceive, int maxExtract, int energy, Consumer<EnergyStorage> consumer) {
+            super(capacity, maxReceive, maxExtract, energy);
+            this.consumer = consumer;
+        }
+
+        static <T, V> T doAndReturn(T value, V value2, Consumer<V> consumer) {
+            consumer.accept(value2);
+            return value;
         }
 
         @Override
         public int receiveEnergy(int maxReceive, boolean simulate) {
-            if (!canReceive())
-                return 0;
-
-            int energyReceived = Math.min(capacity - energy, Math.min(this.maxReceive, maxReceive));
-            if (!simulate) {
-                energy += energyReceived;
-                consumer.accept(energy);
-            }
-            return energyReceived;
+            return doAndReturn(super.receiveEnergy(maxReceive, simulate), this, consumer);
         }
 
         @Override
         public int extractEnergy(int maxExtract, boolean simulate) {
-            if (!canExtract())
-                return 0;
-
-            int energyExtracted = Math.min(energy, Math.min(this.maxExtract, maxExtract));
-            if (!simulate) {
-                energy -= energyExtracted;
-                consumer.accept(energy);
-            }
-            return energyExtracted;
-        }
-
-        @Override
-        public int getEnergyStored() {
-            return energy;
-        }
-
-        @Override
-        public int getMaxEnergyStored() {
-            return capacity;
-        }
-
-        @Override
-        public boolean canExtract() {
-            return this.maxExtract > 0;
-        }
-
-        @Override
-        public boolean canReceive()
-        {
-            return this.maxReceive > 0;
+            return doAndReturn(super.extractEnergy(maxExtract, simulate), this, consumer);
         }
     }
 
@@ -165,9 +122,8 @@ public class ItemCapabilityTest extends BaseTestMod {
 
         public MyProvider(ItemStack stack) {
             this.stack = stack;
-            var energy = stack.get(STORAGE.get());
-            this.storage = new EnergyStorage(1000, 10, 10, energy == null ? 10 : energy, amount -> {
-                stack.set(STORAGE.get(), amount);
+            this.storage = new MyEnergyStorage(1000, 10, 10, stack.getOrDefault(STORAGE.get(), 10), storage -> {
+                stack.set(STORAGE.get(), storage.getEnergyStored());
             });
             this.storageLazyOptional = LazyOptional.of(() -> storage);
         }
