@@ -8,17 +8,21 @@ package net.minecraftforge.debug.gameplay.item;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.EnergyStorage;
+import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
@@ -30,6 +34,7 @@ import net.minecraftforge.registries.RegistryObject;
 import net.minecraftforge.test.BaseTestMod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 @GameTestHolder("forge." + ItemCapabilityTest.MOD_ID)
@@ -62,10 +67,12 @@ public class ItemCapabilityTest extends BaseTestMod {
     }
 
     public void onEvent(AttachCapabilitiesEvent<ItemStack> event) {
-        event.addCapability(
-                ResourceLocation.fromNamespaceAndPath("forge", "test"),
-                new MyProvider(event.getObject())
-        );
+        if (event.getObject().getItem() == Items.COPPER_INGOT) {
+            event.addCapability(
+                    ResourceLocation.fromNamespaceAndPath("forge", "test"),
+                    new MyProvider(event.getObject())
+            );
+        }
     }
 
     public void tooltipEvent(ItemTooltipEvent event) {
@@ -73,6 +80,24 @@ public class ItemCapabilityTest extends BaseTestMod {
         item.getCapability(ForgeCapabilities.ENERGY).ifPresent(storage -> {
             event.getToolTip().add(Component.literal("Energy: " + storage.getEnergyStored()));
         });
+    }
+
+    @GameTest(template = "forge:empty3x3x3")
+    public static void testItemCap(GameTestHelper helper) {
+        ItemStack stack = new ItemStack(Items.COPPER_INGOT);
+        AtomicReference<IEnergyStorage> storageAtomicReference = new AtomicReference<>();
+
+        stack.getCapability(ForgeCapabilities.ENERGY).ifPresent(storage -> {
+            storage.receiveEnergy(1, false);
+            storageAtomicReference.set(storage);
+        });
+
+        helper.assertTrue(
+                storageAtomicReference.get() != null,
+                "Unable to find ForgeCapabilities.ENERGY Capability"
+        );
+
+        helper.succeed();
     }
 
     public static final class MyEnergyStorage extends EnergyStorage {
